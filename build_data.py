@@ -343,6 +343,25 @@ def main():
     maps = extract_sheet_table(wb, '地图代码')
 
     n_entries = sum(len(g['entries']) for s in units for g in s['groups'])
+    # 代码表 xlsx 没登记、但实际存在的键（补进索引，编辑器才有正确的类型/说明）
+    EXTRA = {
+        'turret': [{'code': 'drawOverBody', 'trans': '绘制在主体之上', 'vtype': 'bool', 'kind': 'bool',
+                    'desc': '是否把炮塔绘制在主体之上。默认 true。填 false 时炮塔画在主体下面（比如穿甲炮管插进车体）。',
+                    'ex': 'drawOverBody: false'}],
+        'leg_#': [{'code': 'drawOverBody', 'trans': '绘制在主体之上', 'vtype': 'bool', 'kind': 'bool',
+                   'desc': '是否把这条腿/胳膊绘制在主体之上。默认 false（在主体之下）。',
+                   'ex': 'drawOverBody: true'}],
+    }
+    for sec in units:
+        extra = EXTRA.get(sec['id'])
+        if not extra:
+            continue
+        # 每段只补一次（加到第一个组），避免重复
+        has = any(e['code'] == 'drawOverBody' for g in sec['groups'] for e in g['entries'])
+        if not has and sec['groups']:
+            for e in extra:
+                e = dict(e, _order=99000)
+                sec['groups'][0]['entries'].append(e)
     out = {
         'source': os.path.basename(path),
         'version': re.findall(r'v[\d.]+', os.path.basename(path)) or [''],

@@ -7,3 +7,5 @@ dist/
 node_modules/
 android-app/
 *.spec
+_design_backup/
+设计预览/

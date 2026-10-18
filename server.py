@@ -12,6 +12,7 @@ import sys
 import time
 import webbrowser
 import threading
+import zipfile
 
 try:
     from flask import Flask, jsonify, request, send_from_directory, abort
@@ -26,6 +27,12 @@ if FROZEN:
 else:
     RES = os.path.dirname(os.path.abspath(__file__))
     APP_DIR = RES
+
+# 安卓独立版 / 自定义打包：由启动器把可写目录和静态资源目录传进来
+if os.environ.get('RT_RES_DIR'):
+    RES = os.path.abspath(os.environ['RT_RES_DIR'])
+if os.environ.get('RT_APP_DIR'):
+    APP_DIR = os.path.abspath(os.environ['RT_APP_DIR'])
 
 HERE = RES
 STATIC = os.path.join(RES, 'static')
@@ -44,12 +51,13 @@ def _writable(d):
 
 
 # 可写数据目录：优先 exe 同级的 data\（整个文件夹可以拷走），不可写就退回 %APPDATA%
-DATA = os.path.join(APP_DIR, 'data')
+DATA = os.path.abspath(os.environ['RT_DATA_DIR']) if os.environ.get('RT_DATA_DIR') else os.path.join(APP_DIR, 'data')
 if not _writable(DATA):
     DATA = os.path.join(os.environ.get('APPDATA') or APP_DIR, '铁锈代码编写器', 'data')
     _writable(DATA)
 CONFIG = os.path.join(DATA, 'config.json')
 BACKPACK = os.path.join(DATA, 'backpack.json')
+OUTPUT_DIR = os.path.abspath(os.environ['RT_OUTPUT_DIR']) if os.environ.get('RT_OUTPUT_DIR') else os.path.join(APP_DIR, 'output')
 PORT = int(os.environ.get('RT_PORT', '8760'))
 LAN = os.environ.get('RT_LAN') == '1'          # 局域网模式：手机/平板也能连
 
@@ -311,6 +319,8 @@ def api_fs_list():
         names = os.listdir(path)
     except PermissionError:
         return jsonify({'error': '无权限访问: ' + path}), 403
+    except OSError as e:
+        return jsonify({'error': '读取目录失败: ' + str(e)}), 500
     for name in names:
         if name.startswith('.'):
             continue
@@ -331,11 +341,13 @@ def api_fs_list():
     dirs.sort(key=lambda x: x['name'].lower())
     files.sort(key=lambda x: x['name'].lower())
     parent = os.path.dirname(path)
-    return jsonify({'path': path, 'parent': (parent if parent != path else None),
+    resp = jsonify({'path': path, 'parent': (parent if parent != path else None),
                     'name': os.path.basename(path) or path,
                     'dirs': dirs, 'files': files,
                     'modRoot': find_mod_root(path) or '',
                     'defaultRoot': default_root()})
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 
 @app.route('/api/file/raw')
@@ -543,6 +555,68 @@ def api_fs_newfile():
     return jsonify({'ok': True, 'path': full, 'name': name})
 
 
+@app.route('/api/anim/export-work', methods=['POST'])
+def api_anim_export_work():
+    """导出游戏作品：只包含 [animation_xxx] ini，可打包 zip；默认写程序根目录 output"""
+    d = request.get_json(force=True, silent=True) or {}
+    name = re.sub(r'[<>:"/\\|?*]', '_', str(d.get('name') or 'animation')).strip() or 'animation'
+    text = d.get('text')
+    if text is None:
+        return jsonify({'error': '缺少作品代码'}), 400
+    zip_flag = bool(d.get('zip', True))
+    use_output = bool(d.get('output'))
+    target = str(d.get('path') or '').strip()
+    try:
+        if use_output or not target:
+            outdir = OUTPUT_DIR
+            os.makedirs(outdir, exist_ok=True)
+            base = name + ('.zip' if zip_flag else '.ini')
+            target = os.path.join(outdir, base)
+            n = 2
+            while os.path.exists(target):
+                target = os.path.join(outdir, name + '_' + str(n) + ('.zip' if zip_flag else '.ini'))
+                n += 1
+        else:
+            target = os.path.abspath(target)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        if zip_flag:
+            if not target.lower().endswith('.zip'):
+                target += '.zip'
+            with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED) as z:
+                z.writestr(name + '.ini', text)
+        else:
+            if target.lower().endswith('.zip'):
+                target = target[:-4] + '.ini'
+            with open(target, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(text)
+    except OSError as e:
+        return jsonify({'error': str(e)}), 500
+    return jsonify({'ok': True, 'path': target, 'zip': zip_flag})
+
+
+@app.route('/api/anim/import-work', methods=['POST'])
+def api_anim_import_work():
+    """导入作品：支持 ini/txt/template 或只含一个 ini 的 zip"""
+    d = request.get_json(force=True, silent=True) or {}
+    path = str(d.get('path') or '').strip()
+    if not path or not os.path.isfile(path):
+        return jsonify({'error': '文件不存在: ' + path}), 404
+    try:
+        if path.lower().endswith('.zip'):
+            with zipfile.ZipFile(path) as z:
+                names = [n for n in z.namelist()
+                         if n.lower().endswith(('.ini', '.template', '.txt')) and not n.startswith('__MACOSX')]
+                if not names:
+                    return jsonify({'error': 'zip 里没有 ini/txt 作品文件'}), 400
+                chosen = names[0]
+                raw = z.read(chosen)
+                text = raw.decode('utf-8-sig', errors='replace')
+                return jsonify({'ok': True, 'name': os.path.basename(chosen), 'text': text, 'path': path})
+        return jsonify({'ok': True, 'name': os.path.basename(path), 'path': path, 'text': read_text(path)})
+    except (OSError, zipfile.BadZipFile) as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/file/save', methods=['POST'])
 def api_file_save():
     d = request.get_json(force=True, silent=True) or {}
@@ -715,6 +789,58 @@ def base_name(s):
     return s.rsplit('/', 1)[-1]
 
 
+def find_duplicate_keys(text):
+    """扫描一个 ini/template 文本，返回段内重复键分组。
+
+    只把同一段（同名段按出现次序区分）里重复出现的键算作重复；
+    不同段里的同名键是正常的。键名不区分大小写，值保留原文。
+    """
+    out = []
+    cur_name = None
+    cur_occ = 0
+    occ_count = {}
+    seen = {}
+
+    def flush():
+        for rec in seen.values():
+            if len(rec['lines']) >= 2:
+                out.append(rec)
+
+    for lineno, line in enumerate(text.splitlines(), 1):
+        t = line.strip().lstrip('\ufeff')
+        if not t or t.startswith('#') or t.startswith(';'):
+            continue
+        m = SECTION_RE.match(t)
+        if m:
+            flush()
+            seen = {}
+            cur_name = m.group(1).strip()
+            low = cur_name.lower()
+            cur_occ = occ_count.get(low, 0)
+            occ_count[low] = cur_occ + 1
+            continue
+        i = t.find(':')
+        j = t.find('=')
+        if i < 0 or (0 <= j < i):
+            i = j
+        if i <= 0:
+            continue
+        key = t[:i].strip()
+        if not key:
+            continue
+        ident = key.lower()
+        val = t[i + 1:].strip()
+        rec = seen.get(ident)
+        if rec is None:
+            seen[ident] = {'section': cur_name or '(未分段)', 'occ': cur_occ, 'key': key,
+                           'lines': [lineno], 'values': [val]}
+        else:
+            rec['lines'].append(lineno)
+            rec['values'].append(val)
+    flush()
+    return out
+
+
 def scan_mod(root, force=False):
     now = time.time()
     if not force and _SCAN_CACHE['key'] == root and now - _SCAN_CACHE['time'] < SCAN_TTL:
@@ -759,6 +885,8 @@ def scan_mod(root, force=False):
     allunits = None
     allunits_path = None
     used_globals = {}     # 全局变量名 → 用到的文件数
+    dup_files = []
+    dup_groups = []
     for rel, full in files_ini:
         try:
             if os.path.getsize(full) > 12 * 1024 * 1024:
@@ -768,6 +896,27 @@ def scan_mod(root, force=False):
             continue
         for m in REF_FILE_RE.finditer(text):
             refs.add(base_name(m.group(0)).lower())
+        # 重复键：.md 常是文档/代码片段，容易误报，只检查真正的代码文件
+        if rel.lower().endswith(('.ini', '.template')):
+            try:
+                dups = find_duplicate_keys(text)
+            except Exception:
+                dups = []
+            if dups:
+                for g in dups:
+                    g['path'] = full
+                    g['rel'] = rel
+                    g['name'] = os.path.basename(full)
+                    g['count'] = len(g['lines'])
+                    g['same'] = len(set(g['values'])) <= 1
+                dup_files.append({
+                    'path': full, 'rel': rel, 'name': os.path.basename(full),
+                    'groups': len(dups),
+                    'keys': sum(max(0, len(g['lines']) - 1) for g in dups),
+                    'maxCount': max(len(g['lines']) for g in dups),
+                    'sections': list(dict.fromkeys(g['section'] for g in dups)),
+                })
+                dup_groups.extend(dups)
         for name, kv in parse_sections(text):
             n = name.strip()
             low = n.lower()
@@ -842,9 +991,29 @@ def scan_mod(root, force=False):
     ghost_globals = [{'name': g, 'uses': c} for g, c in used_globals.items() if g not in globals_]
     ghost_globals.sort(key=lambda x: -x['uses'])
 
+    dup_files.sort(key=lambda x: (-x['keys'], x['name'].lower()))
+    dup_groups.sort(key=lambda x: (-x['count'], x['name'].lower(), x['section'].lower(), x['key'].lower()))
+    dup_out = []
+    for g in dup_groups[:2500]:
+        dup_out.append({
+            'path': g['path'], 'rel': g['rel'], 'name': g['name'],
+            'section': g['section'], 'occ': g.get('occ', 0), 'key': g['key'],
+            'count': g['count'], 'same': g.get('same', False),
+            'lines': g['lines'][:20],
+            'values': [str(v)[:160] for v in g['values'][:10]],
+        })
     data = {
         'ok': True, 'root': root, 'cached': False, 'truncated': truncated,
         'files': len(files_ini), 'seconds': round(time.time() - start, 1),
+        'duplicates': {
+            'files': dup_files,
+            'groups': dup_out,
+            'fileCount': len(dup_files),
+            'groupCount': len(dup_groups),
+            'keyCount': sum(f['keys'] for f in dup_files),
+            'sameCount': sum(1 for g in dup_groups if g.get('same')),
+            'truncated': len(dup_groups) > len(dup_out),
+        },
         'assets': {
             'total': len(assets), 'unused': unused[:400], 'unusedCount': len(unused),
             'unusedBytes': sum(a['size'] for a in unused),
@@ -926,6 +1095,11 @@ def port_in_use(port):
         s.close()
 
 
+def start_server(host='127.0.0.1', port=None):
+    """供安卓内嵌 Python 调用：只启动 Flask，不开浏览器、不处理端口漂移"""
+    app.run(host=host, port=int(port or PORT), debug=False, threaded=True, use_reloader=False)
+
+
 def main():
     global PORT, LAN
     # 命令行开关：--lan 局域网模式 / --port 8760 / --no-browser
@@ -974,7 +1148,7 @@ def main():
     print('=' * 60)
     if os.environ.get('RT_NO_BROWSER') != '1':
         threading.Timer(1.2, open_browser).start()
-    app.run(host=('0.0.0.0' if LAN else '127.0.0.1'), port=PORT, debug=False, threaded=True)
+    start_server('0.0.0.0' if LAN else '127.0.0.1', PORT)
 
 
 if __name__ == '__main__':

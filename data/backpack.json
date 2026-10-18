@@ -1,0 +1,51 @@
+{
+ "items": [
+  {
+   "name": "effect_爆炸",
+   "kind": "section",
+   "note": "示例：整段存下来的特效模块，别的单位一键追加即可复用",
+   "payload": {
+    "name": "effect_爆炸",
+    "entries": [
+     {
+      "key": "life",
+      "value": "45"
+     },
+     {
+      "key": "image",
+      "value": "爆炸.png"
+     },
+     {
+      "key": "total_frames",
+      "value": "8"
+     },
+     {
+      "key": "scaleFrom",
+      "value": "0.5"
+     }
+    ]
+   },
+   "id": "bag_1791002412444",
+   "added": "2026-10-03 12:40"
+  },
+  {
+   "name": "标准装甲配置",
+   "kind": "keys",
+   "note": "示例：给地面载具类单位套用的装甲设置（勾选字段存下来的键模块）",
+   "payload": [
+    {
+     "section": "core",
+     "key": "armour",
+     "value": "70"
+    },
+    {
+     "section": "core",
+     "key": "isBio",
+     "value": "false"
+    }
+   ],
+   "id": "bag_1791002412442",
+   "added": "2026-10-03 12:40"
+  }
+ ]
+}

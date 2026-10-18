@@ -1,0 +1,42 @@
+plugins {
+    id 'com.android.application'
+    id 'com.chaquo.python'
+}
+
+android {
+    namespace 'com.rusted.rtcoder'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.rusted.rtcoder.standalone'
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName '1.0-standalone'
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
+
+chaquopy {
+    defaultConfig {
+        version '3.12'
+        buildPython '__BUILD_PYTHON__'
+        pip {
+            install 'flask==2.3.3'
+            install 'werkzeug==2.3.7'
+        }
+    }
+}

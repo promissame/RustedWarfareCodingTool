@@ -1,0 +1,30 @@
+{
+ "name": "铁锈代码编写器",
+ "short_name": "铁锈编写器",
+ "description": "Rusted Warfare 单位代码图形化编写 / 预览 / 纠错工具（诺瓦御科 v1.15 代码表）",
+ "start_url": "/",
+ "scope": "/",
+ "display": "standalone",
+ "orientation": "any",
+ "background_color": "#f5f5f7",
+ "theme_color": "#000000",
+ "lang": "zh-CN",
+ "icons": [
+  {
+   "src": "/static/icons/icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "/static/icons/icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  },
+  {
+   "src": "/static/icons/icon-maskable-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ]
+}

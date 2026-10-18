@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="light">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="铁锈编写器">
+<title>铁锈代码编写器 · 诺瓦御科 v1.15 代码表</title>
+<link rel="manifest" href="/static/manifest.webmanifest?v={{V}}">
+<link rel="icon" href="/static/icons/icon-192.png?v={{V}}">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png?v={{V}}">
+<link rel="stylesheet" href="/static/style.css?v={{V}}">
+</head>
+<body>
+
+<header class="topbar">
+  <button class="menu-btn" id="btnMenu" title="菜单" aria-label="菜单">☰</button>
+  <div class="brand">
+    <div class="logo">RW</div>
+    <div class="brand-text">
+      <div class="brand-title">铁锈代码编写器</div>
+      <div class="brand-sub" id="metaInfo">诺瓦御科 v1.15 代码表 · 图形化编写 / 预览 / 纠错</div>
+    </div>
+  </div>
+
+  <div class="file-box">
+    <span class="file-name" id="fileName">未命名.ini</span>
+    <span class="dirty-dot" id="dirtyDot" title="有未保存的修改"></span>
+  </div>
+
+  <div class="toolbar" id="toolbar">
+    <button class="btn" id="btnNew"  title="新建一个空单位">新建</button>
+    <button class="btn" id="btnTpl"  title="从常用模板开始">模板</button>
+    <button class="btn" id="btnOpen" title="从模组目录打开 .ini">打开</button>
+    <button class="btn primary" id="btnSave" title="保存 (Ctrl+S)">保存</button>
+    <span class="tb-sep"></span>
+    <button class="btn" id="btnAnim" title="关键帧动画制作器：做动作、预览、写进代码">动画</button>
+    <button class="btn" id="btnAudit" title="体检整个模组：哪些素材没被引用、全局变量清单、all-units 里有什么">体检</button>
+    <span class="tb-sep"></span>
+    <div class="top-menu-wrap">
+      <button class="btn ghost" id="btnMore" title="更多文件操作" aria-haspopup="true" aria-expanded="false">更多 ▾</button>
+      <div class="top-menu" id="topMenu">
+        <button class="btn" id="btnSaveAs" title="另存为">另存为…</button>
+        <button class="btn" id="btnImport" title="粘贴代码导入">导入代码…</button>
+        <button class="btn" id="btnExport" title="导出/复制代码">导出 / 复制…</button>
+        <div class="menu-sep"></div>
+        <button class="btn" id="btnHelp" title="使用说明">使用说明</button>
+      </div>
+    </div>
+    <button class="btn ghost sidebar-topbtn" id="btnSidebar" title="显示 / 隐藏右侧栏" aria-controls="rightPanel">侧栏</button>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ============ 左：代码库 / 资源管理器 ============ -->
+  <aside class="panel left" id="leftPanel">
+    <div class="side-tabs">
+      <button class="side-tab active" data-side="lib">代码库</button>
+      <button class="side-tab" data-side="fs">资源</button>
+    </div>
+
+    <div class="side-pane" id="sideLib">
+      <div class="panel-head">
+        <div class="search-wrap">
+          <span class="search-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4 14 14"/></svg></span>
+          <input id="searchInput" type="text" placeholder="搜索代码、中文名或说明…" title="例如：血、price、爆炸">
+          <button class="clear-btn" id="searchClear" title="清空">×</button>
+        </div>
+        <div class="seg" id="searchSeg">
+          <button class="seg-btn active" data-scope="all">全部</button>
+          <button class="seg-btn" data-scope="used">已用</button>
+          <button class="seg-btn" data-scope="unused">未用</button>
+        </div>
+      </div>
+
+      <div class="tpl-strip" id="tplStrip">
+        <div class="tpl-title">快速骨架</div>
+        <div class="tpl-btns" id="tplBtns"></div>
+      </div>
+
+      <div class="lib" id="libList"></div>
+
+      <div class="panel-foot">
+        <button class="btn small" id="btnAddSection">＋ 添加自定义段 [xxx]</button>
+        <div class="hint" id="libHint">点击条目把代码加入中间编辑区</div>
+      </div>
+    </div>
+
+    <div class="side-pane hidden" id="sideFs">
+      <div class="fs-bar">
+        <button class="icon-btn" id="fsUp" title="上一级" aria-label="上一级"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12.5V3.5"/><path d="M4.2 7.3 8 3.5l3.8 3.8"/></svg></button>
+        <button class="icon-btn" id="fsMod" title="跳到模组根（含 all-units.template 的目录）" aria-label="跳到模组根"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 7.2 8 2.8l5.4 4.4v5.4a.9.9 0 0 1-.9.9H3.5a.9.9 0 0 1-.9-.9z"/><path d="M6.5 13.5V9.3h3v4.2"/></svg></button>
+        <button class="icon-btn" id="fsRefresh" title="刷新" aria-label="刷新"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 8a5 5 0 1 1-1.5-3.5"/><path d="M13.2 2.8v3.5H9.7"/></svg></button>
+        <button class="icon-btn" id="fsReveal" title="在 Windows 资源管理器里打开这个目录" aria-label="在资源管理器中打开"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.4c0-.6.4-1 1-1h2.7l1.3 1.5h5c.6 0 1 .4 1 1v5.7c0 .6-.4 1-1 1H3c-.6 0-1-.4-1-1z"/></svg></button>
+        <button class="icon-btn" id="fsFind" title="在模组里搜索文件内容" aria-label="在模组里搜索文件内容"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4 14 14"/></svg></button>
+      </div>
+      <div class="fs-crumbs" id="fsCrumbs"></div>
+      <input id="fsPath" class="fs-path" spellcheck="false" title="当前目录，可以直接改路径后回车">
+      <div class="fs-tools">
+        <input id="fsFilter" placeholder="筛选名字…">
+        <select id="fsKinds" title="显示哪些文件">
+          <option value="ini,image,audio,text">代码 + 素材</option>
+          <option value="ini">只看代码 ini/template</option>
+          <option value="image,audio">只看图片 / 音频</option>
+          <option value="">全部文件</option>
+        </select>
+      </div>
+      <div class="fs-tools">
+        <label class="mini-check" title="结合模组体检结果：只显示没有被任何 ini 引用过的素材">
+          <input type="checkbox" id="fsOnlyUnused"> 只看未引用素材</label>
+        <label class="mini-check" title="结合模组体检结果：只显示段内有重复键的 ini/template">
+          <input type="checkbox" id="fsOnlyDup"> 只看重复键</label>
+        <span class="grow"></span>
+        <button class="btn small" id="fsNewFile" title="在当前目录新建一个单位 ini">＋ 新单位</button>
+        <button class="btn small" id="fsNewDir" title="在当前目录新建一个文件夹">＋ 文件夹</button>
+      </div>
+      <div class="fs-tools fs-view-tools">
+        <select id="fsSort" title="排序方式">
+          <option value="name-asc">名称 ↑</option>
+          <option value="name-desc">名称 ↓</option>
+          <option value="mtime-desc">最近修改</option>
+          <option value="mtime-asc">最早修改</option>
+          <option value="size-desc">体积从大到小</option>
+          <option value="size-asc">体积从小到大</option>
+          <option value="kind-asc">按类型</option>
+        </select>
+        <span class="grow"></span>
+        <button class="btn small ghost" id="fsSelect" title="多选模式：勾选多个文件后批量复制路径 / 移到回收站">选择</button>
+        <button class="icon-btn fs-view-btn active" id="fsViewList" title="列表视图" aria-label="列表视图">☰</button>
+        <button class="icon-btn fs-view-btn" id="fsViewGrid" title="缩略图视图" aria-label="缩略图视图">▦</button>
+      </div>
+      <div class="fs-selbar hidden" id="fsSelbar"></div>
+      <div class="fs-list" id="fsList" tabindex="0"></div>
+      <div class="fs-foot" id="fsFoot"></div>
+    </div>
+  </aside>
+
+  <div class="splitter" id="splitLeft" role="separator" aria-orientation="vertical"
+       aria-label="调整左侧面板宽度" tabindex="0" title="拖动调整左侧宽度，双击复位"></div>
+
+  <!-- ============ 中：编辑器 ============ -->
+  <section class="panel mid">
+    <div class="panel-head mid-head">
+      <div class="mid-title">
+        <span id="docTitle">单位：未命名</span>
+        <span class="chip" id="chipStats">0 段 · 0 字段</span>
+      </div>
+      <div class="mid-actions">
+        <button class="btn small ghost" id="btnCollapseAll">折叠全部</button>
+        <button class="btn small ghost" id="btnExpandAll">展开全部</button>
+        <button class="btn small ghost" id="btnOrganize" title="按代码表推荐顺序整理各段字段">整理排序</button>
+      </div>
+    </div>
+    <div class="mid-tools">
+      <label class="mid-jump" title="快速跳到某个段">
+        <span>跳到</span>
+        <select id="secJump" aria-label="跳转到段"></select>
+      </label>
+      <div class="mid-filter" id="midFilterWrap">
+        <span class="search-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4 14 14"/></svg></span>
+        <input id="fieldFilter" type="text" placeholder="筛选当前文件字段…（按 / 聚焦）" autocomplete="off">
+        <button class="clear-btn" id="fieldFilterClear" title="清空筛选">×</button>
+      </div>
+      <span class="mid-filter-count" id="fieldFilterCount"></span>
+    </div>
+
+    <div class="editor" id="editor"></div>
+  </section>
+
+  <div class="splitter" id="splitRight" role="separator" aria-orientation="vertical"
+       aria-label="调整右侧栏宽度" tabindex="0" title="拖动调整侧栏宽度，双击复位">
+    <button class="sidebar-fold" id="btnSidebarFold" title="收起侧栏" aria-label="收起侧栏" aria-controls="rightPanel">⟩</button>
+  </div>
+
+  <!-- ============ 右侧栏：预览 / 检查 ============ -->
+  <aside class="panel right" id="rightPanel">
+    <div class="sidebar-rail" id="sidebarRail" aria-label="右侧栏快捷入口">
+      <button class="rail-btn" data-sidebar-tab="bag" title="背包">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 7h15l-1 10.4a2 2 0 0 1-2 1.8H7.5a2 2 0 0 1-2-1.8z"/><path d="M8.5 7V5.5a3.5 3.5 0 0 1 7 0V7"/></svg>
+        <span>背包</span>
+      </button>
+      <button class="rail-btn active" data-sidebar-tab="code" title="代码预览">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg>
+        <span>代码</span>
+      </button>
+      <button class="rail-btn" data-sidebar-tab="effect" title="效果预览">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="m10 9 5 3-5 3z"/></svg>
+        <span>效果</span>
+      </button>
+      <button class="rail-btn" data-sidebar-tab="check" title="错误检查">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m8 12 2.7 2.7L16.5 9"/></svg>
+        <span>检查</span>
+      </button>
+      <button class="rail-btn" data-sidebar-tab="ref" title="参考手册">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h5.5A2.5 2.5 0 0 1 12 8v11a2.5 2.5 0 0 0-2.5-2.5H4z"/><path d="M20 5.5h-5.5A2.5 2.5 0 0 0 12 8v11a2.5 2.5 0 0 1 2.5-2.5H20z"/></svg>
+        <span>参考</span>
+      </button>
+    </div>
+    <div class="tabs">
+      <button class="tab" data-tab="bag">背包 <span class="badge zero" id="bagBadge">0</span></button>
+      <button class="tab active" data-tab="code">代码预览</button>
+      <button class="tab" data-tab="effect">效果预览</button>
+      <button class="tab" data-tab="check">错误检查 <span class="badge" id="errBadge">0</span></button>
+      <button class="tab" data-tab="ref">参考手册</button>
+    </div>
+
+    <div class="tab-body hidden" id="tabBag">
+      <div class="bag-head">
+        <div class="search-wrap">
+          <span class="search-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 5.4h8.8l-.6 7.4a1.4 1.4 0 0 1-1.4 1.3H5.6a1.4 1.4 0 0 1-1.4-1.3z"/><path d="M5.9 5.4V3.9a2.1 2.1 0 0 1 4.2 0v1.5"/></svg></span>
+          <input id="bagSearch" type="text" placeholder="搜索背包里的模块（如 爆炸、装甲、被动技能）">
+          <button class="clear-btn" id="bagSearchClear" title="清空">×</button>
+        </div>
+        <label class="mini-check" title="应用模块时，遇到同名的键就直接覆盖">
+          <input type="checkbox" id="bagOverwrite"> 应用时覆盖同名键</label>
+      </div>
+
+      <div class="bag-selbar" id="bagSelbar"></div>
+      <div class="bag-list" id="bagList"></div>
+
+      <div class="bag-miss-head">
+        <span class="bmt">缺失引用补全</span>
+        <span class="badge zero" id="missBadge">0</span>
+        <label class="mini-check" title="扫一遍整个模组，判断引用是否在别的文件里也存在">
+          <input type="checkbox" id="missScan"> 扫描整个模组</label>
+      </div>
+      <div class="hint" id="missHint">代码里引用了、但本文件（或模组）里找不到的 特效 / 动作 / 单位 / 全局变量 / 素材</div>
+      <div class="bag-miss" id="bagMiss"></div>
+    </div>
+
+    <div class="tab-body" id="tabCode">
+      <div class="code-tools">
+        <label class="mini-check"><input type="checkbox" id="optBlank" checked> 段之间空行</label>
+        <label class="mini-check"><input type="checkbox" id="optComment"> 带中文注释</label>
+        <button class="btn small" id="btnCopy">复制</button>
+        <button class="btn small" id="btnDownload">下载 .ini</button>
+      </div>
+      <div class="code-view" id="codeView"></div>
+    </div>
+
+    <div class="tab-body hidden" id="tabEffect">
+      <div class="fx" id="fxWrap">
+        <div class="fx-hero" id="fxHero"></div>
+        <div class="fx-canvas-wrap">
+          <canvas id="fxCanvas" width="720" height="420"></canvas>
+          <div class="fx-canvas-tools">
+            <label class="mini-check"><input type="checkbox" id="fxGrid" checked> 地块网格</label>
+            <label class="mini-check"><input type="checkbox" id="fxRange" checked> 攻击/视野圈</label>
+            <label class="mini-check"><input type="checkbox" id="fxSprite" checked> 贴图</label>
+            <span class="fx-state" id="fxStateSwitch" role="group" aria-label="贴图状态">
+              <button type="button" class="fx-state-btn active" data-fxstate="normal" title="正常状态贴图（image）">正常</button>
+              <button type="button" class="fx-state-btn" data-fxstate="dead" title="死亡状态贴图（image_wreak）">死亡</button>
+            </span>
+            <label class="mini-check"><input type="checkbox" id="fxTurrets" checked> 炮塔</label>
+            <label class="mini-check"><input type="checkbox" id="fxCloseup" checked> 整机特写</label>
+            <span class="zoom-ctl" title="也可以在画布上用滚轮缩放、按住拖动平移">
+              <button class="icon-btn" id="fxZoomOut" title="缩小">−</button>
+              <span class="fx-zoom-val" id="fxZoomVal">100%</span>
+              <button class="icon-btn" id="fxZoomIn" title="放大">＋</button>
+              <button class="icon-btn" id="fxZoomReset" title="重置缩放和位置">⟳</button>
+            </span>
+            <span class="fx-legend" id="fxLegend"></span>
+          </div>
+        </div>
+        <div class="fx-grid" id="fxStats"></div>
+        <div class="fx-weapons" id="fxWeapons"></div>
+        <div class="fx-effects" id="fxEffects"></div>
+        <div class="fx-effects" id="fxAnims"></div>
+      </div>
+    </div>
+
+    <div class="tab-body hidden" id="tabCheck">
+      <div class="dup-bar" id="dupBar"></div>
+      <div class="dup-list" id="dupDetails"></div>
+      <div class="check-sum" id="checkSum"></div>
+      <div class="check-list" id="checkList"></div>
+    </div>
+
+    <div class="tab-body hidden" id="tabRef">
+      <div class="ref-tools">
+        <select id="refSelect"></select>
+        <input id="refFilter" type="text" placeholder="筛选数值…">
+      </div>
+      <div class="ref-body" id="refBody"></div>
+    </div>
+  </aside>
+</main>
+
+<footer class="statusbar">
+  <span id="stFile">未打开文件</span>
+  <span class="st-sep">|</span>
+  <span id="stCount">0 段 / 0 字段</span>
+  <span class="st-sep">|</span>
+  <span id="stIssue" class="ok">检查通过</span>
+  <span class="grow"></span>
+  <span id="stMeta">代码表：加载中…</span>
+</footer>
+
+<!-- ============ 移动端：装到主屏提示 ============ -->
+<div class="install-tip hidden" id="installTip">
+  <span class="it-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5.4" y="2.2" width="9.2" height="15.6" rx="2"/><path d="M8.4 15.2h3.2"/></svg></span>
+  <span class="it-txt">在浏览器菜单里选「添加到主屏幕」，就能像 App 一样打开</span>
+  <button class="icon-btn" id="installOk">知道了</button>
+</div>
+
+<!-- ============ 移动端底部导航 ============ -->
+<nav class="mobnav" id="mobNav">
+  <button class="mobnav-btn active" data-mv="lib"><span aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3.2h4.3a2.2 2.2 0 0 1 2.2 2.2v9.2a1.7 1.7 0 0 0-1.7-1.7H3z"/><path d="M17 3.2h-4.3a2.2 2.2 0 0 0-2.2 2.2v9.2a1.7 1.7 0 0 1 1.7-1.7H17z"/></svg></span>代码库</button>
+  <button class="mobnav-btn" data-mv="edit"><span aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="m3.4 16.6 1.1-3.7 8-8a1.8 1.8 0 0 1 2.6 2.6l-8 8z"/><path d="m11.4 5.9 2.7 2.7"/></svg></span>编辑</button>
+  <button class="mobnav-btn" data-mv="view"><span aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.2 10S4.8 5.4 10 5.4 17.8 10 17.8 10 15.2 14.6 10 14.6 2.2 10 2.2 10z"/><circle cx="10" cy="10" r="2.4"/></svg></span>预览</button>
+  <button class="mobnav-btn" data-mv="fs"><span aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.4c0-.7.5-1.2 1.2-1.2h3.2l1.5 1.8h6.4c.7 0 1.2.5 1.2 1.2v7.2c0 .7-.5 1.2-1.2 1.2H3.7c-.7 0-1.2-.5-1.2-1.2z"/></svg></span>资源</button>
+</nav>
+<div class="mobnav-space"></div>
+<button class="mob-save hidden" id="mobSave" title="保存当前文件">保存</button>
+
+<!-- ============ 弹窗 ============ -->
+<div class="modal-mask hidden" id="modalMask">
+  <div class="modal" id="modal">
+    <div class="modal-head">
+      <span id="modalTitle">标题</span>
+      <button class="icon-btn" id="modalClose">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot"></div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+<div class="tipbox hidden" id="tipBox"></div>
+
+<script src="/static/app.js?v={{V}}"></script>
+<script src="/static/anim.js?v={{V}}"></script>
+</body>
+</html>
